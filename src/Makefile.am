@@ -9,6 +9,10 @@ liblustreparallelread_la_LIBADD  = -llustreapi
 liblustreparallelread_la_CFLAGS  = -pthread
 liblustreparallelread_la_LDFLAGS = -pthread -version-info ${LIBRARY_VERSION}
 
+liblustreparallelread_includedir=$(includedir)/liblustreparallelread
+liblustreparallelread_include_HEADERS = liblustreparallelread/liblustreparallelread_getstripeinfo.h \
+	liblustreparallelread/liblustreparallelread_readfilepart.h
+
 bin_PROGRAMS = parcat
 
 parcat_SOURCES = programs/parcat.c

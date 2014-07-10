@@ -304,7 +304,7 @@ StripeReadInfo * StripeReadInfo_new(
 	char * rmem
 )
 {
-	StripeReadInfo * obj = (StripeReadInfo *)malloc(sizeof(StripeReadInfo));
+	StripeReadInfo * obj = (StripeReadInfo *)calloc(1,sizeof(StripeReadInfo));
 	uint64_t const rbaselow = ( rfrom / stripe_size ) * stripe_size;
 	uint64_t const numstripes = ( rto - rbaselow + stripe_size - 1 ) / stripe_size;
 	uint64_t i = 0;
@@ -319,17 +319,15 @@ StripeReadInfo * StripeReadInfo_new(
 	obj->stripe_size = stripe_size;
 	obj->failed = 0;
 	
-	obj->stripesleft = (uint64_t *)malloc(stripe_count * sizeof(uint64_t));
+	obj->stripesleft = (uint64_t *)calloc(obj->stripe_count,sizeof(uint64_t));
 	
 	if ( ! obj->stripesleft )
 		return StripeReadInfo_delete(obj);
-
-	obj->stripesproc = (uint64_t *)malloc(stripe_count * sizeof(uint64_t));
+		
+	obj->stripesproc = (uint64_t *)calloc(obj->stripe_count,sizeof(uint64_t));
 	
 	if ( ! obj->stripesproc )
 		return StripeReadInfo_delete(obj);
-		
-	memset(obj->stripesproc,0,stripe_count * sizeof(uint64_t));
 	
 	obj->threads = (pthread_t *)malloc(rnumthreads * sizeof(pthread_t));
 	
@@ -505,7 +503,7 @@ int liblustreparallelread_readfilepart(
 		errno = ENOMEM;
 		return -1;
 	}
-		
+			
 	rc = liblustreparallelread_getstripeinfo(fn, &stripe_count, &stripe_size);
 	
 	if ( rc < 0 )

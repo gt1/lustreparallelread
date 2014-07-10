@@ -450,9 +450,13 @@ int liblustreparallelread_readfilepart(
 	int stripe_size = -1;
 	int error = -1;
 	StripeReadInfo * stripeinfo = 0;
+	int memgiven = (*mem) != NULL;
 
-	*mem = 0;
-	*memsize = 0;
+	if ( ! memgiven )
+	{
+		*mem = 0;
+		*memsize = 0;
+	}
 	
 	rc = stat(fn,&sb);
 	
@@ -479,17 +483,29 @@ int liblustreparallelread_readfilepart(
 		errno = EINVAL;
 		return -1;
 	}
-	
-	*mem = (char *)malloc(to-from);
+
+	/* if user does not provide a memory block then allocate one */
+	if ( ! memgiven )
+	{
+		*mem = (char *)malloc(to-from);
+		*memsize = to-from;
+	}
+	else
+	{
+		/* return error if given memory block is too small */
+		if ( *memsize < (to-from) )
+		{
+			errno = EINVAL;
+			return -1;
+		}
+	}
 	
 	if ( ! *mem )
 	{
 		errno = ENOMEM;
 		return -1;
 	}
-	
-	*memsize = to-from;
-
+		
 	rc = liblustreparallelread_getstripeinfo(fn, &stripe_count, &stripe_size);
 	
 	if ( rc < 0 )
@@ -540,9 +556,12 @@ int liblustreparallelread_readfilepart(
 	cleanupfail:
 	error = errno;
 	stripeinfo = StripeReadInfo_delete(stripeinfo);
-	free(*mem);
-	*mem = 0;
-	*memsize = 0;
+	if ( ! memgiven )
+	{
+		free(*mem);
+		*mem = 0;
+		*memsize = 0;
+	}
 	errno = error;
 	return -1;
 }

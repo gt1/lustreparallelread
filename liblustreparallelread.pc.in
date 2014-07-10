@@ -7,5 +7,5 @@ Name: liblustreparallelread
 Description: library for parallel reading from Lustre file systems
 Requires:
 Version: @VERSION@
-Libs: -L${libdir} -llustreparallelread
+Libs: -L${libdir} -llustreparallelread -Wl,-rpath -Wl,${libdir} -llustreapi
 Cflags: -I${includedir}

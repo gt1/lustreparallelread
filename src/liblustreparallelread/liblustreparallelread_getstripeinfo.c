@@ -45,7 +45,8 @@ static void * alloc_lum()
 {
 	unsigned int const v1 = sizeof(struct lov_user_md_v1) + LOV_MAX_STRIPE_COUNT * sizeof(struct lov_user_ost_data_v1);
 	unsigned int const v3 = sizeof(struct lov_user_md_v3) + LOV_MAX_STRIPE_COUNT * sizeof(struct lov_user_ost_data_v1);
-	return malloc(maxu(v1, v3));
+	char * mem = calloc(1,maxu(v1, v3));
+	return (void *)mem;
 }
 
 int liblustreparallelread_getstripeinfo(char const * filename, int * stripe_count, int * stripe_size)
@@ -65,6 +66,9 @@ int liblustreparallelread_getstripeinfo(char const * filename, int * stripe_coun
 		errno = EINVAL;
 		return -1;
 	}
+	
+	*stripe_size = -1;
+	*stripe_count = -1;
 
 	int const r = statfs(filename,&sfs);
 	if ( r < 0 )
@@ -97,7 +101,7 @@ int liblustreparallelread_getstripeinfo(char const * filename, int * stripe_coun
 	
 	*stripe_count = lum_file->lmm_stripe_count;
 	*stripe_size = lum_file->lmm_stripe_size;
-	
+		
 	free(lum_file);
 
 	return 0;

@@ -14,8 +14,14 @@ liblustreparallelread_include_HEADERS = liblustreparallelread/liblustreparallelr
 	liblustreparallelread/liblustreparallelread_readfilepart.h
 
 bin_PROGRAMS = parcat
+noinst_PROGRAMS = testrandomread
 
 parcat_SOURCES = programs/parcat.c
 parcat_LDADD = liblustreparallelread.la
 parcat_CFLAGS = -pthread
 parcat_LDFLAGS = -pthread
+
+testrandomread_SOURCES = programs/testrandomread.c
+testrandomread_LDADD = liblustreparallelread.la
+testrandomread_CFLAGS = -pthread
+testrandomread_LDFLAGS = -pthread

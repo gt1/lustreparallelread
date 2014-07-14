@@ -52,7 +52,8 @@ typedef struct _StripeReadInfo
 	int seminitok;
 	sem_t sema;
 	uint64_t * stripereadspending;
-	uint64_t stripereadspendingfill;
+	uint64_t stripereadspendinglow;
+	uint64_t stripereadspendinghigh;
 	int * fds;
 	char * mem;
 	int failed;
@@ -121,6 +122,8 @@ StripeReadInfo * StripeReadInfo_delete(StripeReadInfo * obj)
 		{
 			free(obj->stripereadspending);
 			obj->stripereadspending = 0;
+			obj->stripereadspendinglow = 0;
+			obj->stripereadspendinghigh = 0;
 		}
 		if ( obj->fds )
 		{
@@ -206,13 +209,13 @@ static void * liblustreparallelread_readfilepart_threadstart(void * voidobj)
 			
 			pthread_spin_lock(&(obj->spinlock));
 		
-			if ( ! obj->stripereadspendingfill )
+			if ( ! (obj->stripereadspendinghigh-obj->stripereadspendinglow) )
 			{
 				running = 0;
 			}
 			else
 			{
-				pendid = obj->stripereadspending[--obj->stripereadspendingfill];
+				pendid = obj->stripereadspending[(obj->stripereadspendinglow++)%obj->stripe_count];
 			}
 			
 			pthread_spin_unlock(&(obj->spinlock));
@@ -265,7 +268,7 @@ static void * liblustreparallelread_readfilepart_threadstart(void * voidobj)
 					obj->stripesleft[pendid]--;
 					
 					pthread_spin_lock(&(obj->spinlock));
-					obj->stripereadspending[obj->stripereadspendingfill++] = pendid;
+					obj->stripereadspending[(obj->stripereadspendinghigh++) % obj->stripe_count] = pendid;
 					pthread_spin_unlock(&(obj->spinlock));
 
 					sem_post(&(obj->sema));
@@ -275,7 +278,7 @@ static void * liblustreparallelread_readfilepart_threadstart(void * voidobj)
 					uint64_t numpend;
 					
 					pthread_spin_lock(&(obj->spinlock));
-					numpend = obj->stripereadspendingfill;					
+					numpend = obj->stripereadspendinghigh - obj->stripereadspendinglow;
 					pthread_spin_unlock(&(obj->spinlock));
 			
 					/* if there are no more pending stripes */
@@ -372,6 +375,8 @@ StripeReadInfo * StripeReadInfo_new(
 		return StripeReadInfo_delete(obj);
 		
 	memset(obj->stripereadspending,0,stripe_count * sizeof(uint64_t));
+	obj->stripereadspendinglow = 0;
+	obj->stripereadspendinghigh = 0;
 
 	obj->fds = (int *)malloc(stripe_count * sizeof(int));
 	
@@ -383,8 +388,6 @@ StripeReadInfo * StripeReadInfo_new(
 	for ( i = 0; i < stripe_count; ++i )
 		obj->fds[i] = -1;
 
-	obj->stripereadspendingfill = 0;
-		
 	obj->baselow = rbaselow;
 	obj->from = rfrom;
 	obj->to = rto;
@@ -408,7 +411,7 @@ StripeReadInfo * StripeReadInfo_new(
 			
 			posix_fadvise(fd, 0, 0, POSIX_FADV_RANDOM);
 			
-			obj->stripereadspending[obj->stripereadspendingfill++] = i;
+			obj->stripereadspending[obj->stripereadspendinghigh++] = i;
 		}
 
 
@@ -419,7 +422,10 @@ StripeReadInfo * StripeReadInfo_new(
 			uint64_t j = 0;
 
 			obj->threads[i] = 0;
-			obj->stripereadspendingfill = 0;
+
+			pthread_spin_lock(&(obj->spinlock));
+			obj->stripereadspendinglow = obj->stripereadspendinghigh = 0;
+			pthread_spin_unlock(&(obj->spinlock));
 			
 			for ( j = 0; j < i; ++j )
 				sem_post(&(obj->sema));
